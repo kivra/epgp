@@ -135,7 +135,7 @@ s2k_hash(iter_salted_s2k, <<Hash,Salt:8/binary,C,R/binary>>,
     SeshAlg = sym_alg(SAlg),
     SKeyFun = fun () -> Decrypted end,
     Rec1 = Rec0#pgp_ske_skey{ alg = SeshAlg
-                            , skey_fun = Decrypted
+                            , skey_fun = SKeyFun
                             },
     SRec = #pgp_skey{ alg = SeshAlg
                     , skey_fun = SKeyFun
