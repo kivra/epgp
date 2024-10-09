@@ -35,10 +35,11 @@
                  , skey
                  }).
 
-parse(Message) ->
+parse(Message) when is_binary(Message) ->
     do_parse(Message, #pgp_ctx{}).
 
-parse(Message, Password) ->
+parse(Message, Password) when is_binary(Message) andalso
+                              is_binary(Password) ->
     PassFun = fun () -> Password end,
     do_parse(Message, #pgp_ctx{pw_fun = PassFun}).
 
@@ -56,7 +57,7 @@ find_end(Message, Ctx) ->
         [Msg1] ->
             [Msg1];
         [Msg1, Rest] ->
-            [parse_msg(Msg1, Ctx)] ++ parse(Rest)
+            [parse_msg(Msg1, Ctx)] ++ do_parse(Rest, Ctx)
     end.
 
 parse_msg(Msg, Ctx) ->
