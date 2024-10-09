@@ -10,7 +10,7 @@
 -record(pgp_pke_skey, {}).
 -record(pgp_sig, {}).
 -record(pgp_ske_skey, { alg
-                      , skey_fun
+                      , skey
                       }).
 -record(pgp_op_sig, {}).
 -record(pgp_sec_key, {}).
@@ -135,7 +135,7 @@ s2k_hash(iter_salted_s2k, <<Hash,Salt:8/binary,C,R/binary>>,
     SeshAlg = sym_alg(SAlg),
     SKeyFun = fun () -> Decrypted end,
     Rec1 = Rec0#pgp_ske_skey{ alg = SeshAlg
-                            , skey_fun = SKeyFun
+                            , skey = Decrypted
                             },
     SRec = #pgp_skey{ alg = SeshAlg
                     , skey_fun = SKeyFun
