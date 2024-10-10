@@ -17,15 +17,21 @@
 -record(pgp_sec_key, {}).
 -record(pgp_pub_key, {}).
 -record(pgp_sec_subkey, {}).
--record(pgp_comp_data, {}).
+-record(pgp_comp_data, { alg
+                       , data
+                       }).
 -record(pgp_sym_enc_data, {}).
 -record(pgp_marker, {}).
--record(pgp_lit_data, {}).
+-record(pgp_lit_data, { type
+                      , filename
+                      , timestamp
+                      , data
+                      }).
 -record(pgp_trust, {}).
 -record(pgp_userid, {}).
 -record(pgp_pub_subkey, {}).
 -record(pgp_user_attr, {}).
--record(pgp_se_n_ip_data, {}).
+-record(pgp_se_n_ip_data, {data}).
 -record(pgp_mod_det_code, {}).
 
 -record(pgp_skey, { alg
@@ -148,7 +154,7 @@ find_end(Message, Ctx) ->
         [Msg1] ->
             [Msg1];
         [Msg1, Rest] ->
-            [parse_msg(Msg1, Ctx)] ++ do_parse(Rest, Ctx)
+            parse_msg(Msg1, Ctx) ++ do_parse(Rest, Ctx)
     end.
 
 parse_msg(Msg, Ctx) ->
@@ -187,15 +193,17 @@ find_length_new(<<L,R0/binary>>, Tag, Ctx0) when L < 192 ->
     <<Packet:L/binary,R1/binary>> = R0,
     {Res, Ctx1} = parse_packet(Tag, Packet, Ctx0),
     [Res] ++ parse_packets(R1, Ctx1);
-find_length_new(<<L0,L1,R0/binary>>, Tag, Ctx) when L0 >= 192 andalso
+find_length_new(<<L0,L1,R0/binary>>, Tag, Ctx0) when L0 >= 192 andalso
                                                     L0 < 224 ->
     L = (L0 - 192) bsl 8 + L1 + 192,
     <<Packet:L/binary,R1/binary>> = R0,
-    [{Tag, L, Packet}] ++ parse_packets(R1, Ctx);
+    {Res, Ctx1} = parse_packet(Tag, Packet, Ctx0),
+    [Res] ++ parse_packets(R1, Ctx1);
 find_length_new(<<255,L:32/big-unsigned-integer,R0/binary>>, Tag,
-                Ctx) ->
+                Ctx0) ->
     <<Packet:L/binary,R1/binary>> = R0,
-    [{Tag, L, Packet}] ++ parse_packets(R1, Ctx).
+    {Res, Ctx1} = parse_packet(Tag, Packet, Ctx0),
+    [Res] ++ parse_packets(R1, Ctx1).
 
 parse_packet(#pgp_ske_skey{} = Rec, Packet, Ctx) ->
     parse_ske_skey(Packet, Rec, Ctx);
@@ -225,9 +233,9 @@ s2k_hash(iter_salted_s2k, <<Hash,Salt:8/binary,C,R/binary>>,
     SRec = #pgp_skey{ alg = SeshAlg
                     , skey_fun = SKeyFun
                     },
-    {{iter_salted_s2k, HashAlg, Salt, SymAlg, SKey, R, Decrypted,
-      Rec1},
-     Ctx#pgp_ctx{skey = SRec}}.
+    %% logger:debug("~p~n", [{iter_salted_s2k, HashAlg, Salt, SymAlg,
+    %%                        SKey, R, Decrypted, Rec1}]),
+    {Rec1, Ctx#pgp_ctx{skey = SRec}}.
 
 s2k(iter_salted_s2k, CountField, PassFun, Salt, HashAlg) ->
     Res = do_s2k(iter_salted_s2k, CountField, PassFun, Salt, HashAlg),
@@ -245,7 +253,7 @@ do_s2k(iter_salted_s2k, CountField, PassFun, Salt, HashAlg) ->
     SKey = crypto:hash(HashAlg, Iter),
     SKey.
 
-parse_se_n_ip_data(<<1,Encrypted/binary>>, _Rec,
+parse_se_n_ip_data(<<1,Encrypted/binary>>, Rec,
                    #pgp_ctx{skey = #pgp_skey{ alg = SeshAlg
                                             , skey_fun = SKeyFun
                                             }} = Ctx) ->
@@ -262,7 +270,9 @@ parse_se_n_ip_data(<<1,Encrypted/binary>>, _Rec,
             case Digest == ExpDigest of
                 true ->
                     Res = parse_packets(Data, Ctx),
-                    {{se_n_ip_data, Encrypted, Decrypted, Data, Res}, Ctx};
+                    %% logger:debug("~p~n", [{se_n_ip_data, Encrypted,
+                    %%                        Decrypted, Data, Res}]),
+                    {Rec#pgp_se_n_ip_data{data = Res}, Ctx};
                 false ->
                     error(bad_digest)
             end;
@@ -273,18 +283,19 @@ parse_se_n_ip_data(<<1,Encrypted/binary>>, _Rec,
 parse_comp_data(<<CompAlg, Packet/binary>>, Rec, Ctx) ->
     do_decompress(comp_alg(CompAlg), Packet, Rec, Ctx).
 
-do_decompress(none, Packet, _Rec, Ctx) ->
-    {{data, Packet}, Ctx};
-do_decompress(zip, Zipped, _Rec, Ctx) ->
+do_decompress(none, Packet, Rec, Ctx) ->
+    {Rec#pgp_comp_data{alg=none,data=parse_packets(Packet, Ctx)}, Ctx};
+do_decompress(zip, Zipped, Rec, Ctx) ->
     Z = zlib:open(),
     zlib:inflateInit(Z, -15),
     [Unzipped] = zlib:inflate(Z, Zipped),
     zlib:close(Z),
-    {{data, parse_packets(Unzipped, Ctx)}, Ctx}.
+    {Rec#pgp_comp_data{alg=zip,data=parse_packets(Unzipped, Ctx)}, Ctx}.
 
-parse_lit_data(<<$u, L, Utf8/binary>>, _Rec, Ctx) ->
-    <<_Filename:L/binary, _UniXTS:32, Message/binary>> = Utf8,
-    {{utf8, Message}, Ctx}.
+parse_lit_data(<<$u, L, Utf8/binary>>, Rec, Ctx) ->
+    <<Filename:L/binary, UnixTS:32, Message/binary>> = Utf8,
+    {Rec#pgp_lit_data{type = utf8, filename = Filename,
+                      timestamp = UnixTS, data = Message}, Ctx}.
 
 sym_alg(9) -> aes_256_cfb128.
 
@@ -333,6 +344,7 @@ unix_ts_32() ->
           {{1970,1,1},{0,0,0}}),
     <<UnixTS:32>>.
 
+%% password is <<"apa">>
 testmsg() ->
     <<"-----BEGIN PGP MESSAGE-----\n"
       "\n"
