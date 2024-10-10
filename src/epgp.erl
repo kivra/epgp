@@ -262,23 +262,36 @@ parse_se_n_ip_data(<<1,Encrypted/binary>>, Rec,
     Decrypted =
         crypto:crypto_one_time(SeshAlg, SKeyFun(), iv(SeshAlg),
                                Encrypted, false),
-    case Decrypted of
-        <<_:NonceSizish/binary, ChSum:16, ChSum:16, Data:DecSize/binary,
-          16#d3, 16#14, Digest:20/binary>> ->
-            IVData = binary:part(Decrypted, 0, byte_size(Encrypted) - 20),
-            ExpDigest = crypto:hash(sha, IVData),
-            case Digest == ExpDigest of
-                true ->
-                    Res = parse_packets(Data, Ctx),
-                    %% logger:debug("~p~n", [{se_n_ip_data, Encrypted,
-                    %%                        Decrypted, Data, Res}]),
-                    {Rec#pgp_se_n_ip_data{data = Res}, Ctx};
-                false ->
-                    error(bad_digest)
-            end;
-        _ ->
+    <<_:NonceSizish/binary, ChSum1:16, ChSum2:16, Data:DecSize/binary,
+      S1, S2, Digest:20/binary>> = Decrypted,
+    IVData = binary:part(Decrypted, 0, byte_size(Encrypted) - 20),
+    ExpDigest = crypto:hash(sha, IVData),
+    case (ChSum1 == ChSum2) and (S1 == 16#d3) and (S2 == 16#14) and
+        const_time_eq(Digest, ExpDigest) of
+        true ->
+            Res = parse_packets(Data, Ctx),
+            %% logger:debug("~p~n", [{se_n_ip_data, Encrypted,
+            %%                        Decrypted, Data, Res}]),
+            {Rec#pgp_se_n_ip_data{data = Res}, Ctx};
+        false ->
             error(decryption_failed)
     end.
+
+%% This isn't perfectly constant time, but at least it does not
+%% depend of where in a binary an inequality is
+const_time_eq(A, B) ->
+    do_const_time_eq(A, B, true).
+
+do_const_time_eq(<<>>, <<>>, Acc) ->
+    Acc;
+do_const_time_eq(<<>>, _, _) ->
+    false;
+do_const_time_eq(_, <<>>, _) ->
+    false;
+do_const_time_eq(<<H, T1/binary>>, <<H, T2/binary>>, Acc) ->
+    do_const_time_eq(T1, T2, Acc);
+do_const_time_eq(<<_H1, T1/binary>>, <<_H2, T2/binary>>, _) ->
+    do_const_time_eq(T1, T2, false).
 
 parse_comp_data(<<CompAlg, Packet/binary>>, Rec, Ctx) ->
     do_decompress(comp_alg(CompAlg), Packet, Rec, Ctx).
