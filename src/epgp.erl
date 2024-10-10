@@ -131,7 +131,7 @@ parse(Message, Password) when is_binary(Message) andalso
     PassFun = fun () -> Password end,
     do_parse(Message, #pgp_ctx{pw_fun = PassFun}).
 
-do_parse([], _) ->
+do_parse(<<>>, _) ->
     [];
 do_parse(Message, Ctx) ->
     case binary:split(Message, <<"-----BEGIN PGP MESSAGE-----">>) of
@@ -313,8 +313,8 @@ s2k_spec(0) -> simple_s2k;
 s2k_spec(1) -> salted_s2k;
 s2k_spec(3) -> iter_salted_s2k.
 
-s2k_tag(simple_s2k) -> 0;
-s2k_tag(salted_s2k) -> 1;
+%% s2k_tag(simple_s2k) -> 0;
+%% s2k_tag(salted_s2k) -> 1;
 s2k_tag(iter_salted_s2k) -> 3.
 
 hash_alg(1) -> md5;
@@ -325,13 +325,13 @@ hash_alg(9) -> sha384;
 hash_alg(10) -> sha512;
 hash_alg(11) -> sha224.
 
-hash_tag(md5) -> 1;
-hash_tag(sha) -> 2;
-hash_tag(ripemd160) -> 3;
-hash_tag(sha256) -> 8;
-hash_tag(sha384) -> 9;
-hash_tag(sha512) -> 10;
-hash_tag(sha224) -> 11.
+%% hash_tag(md5) -> 1;
+%% hash_tag(sha) -> 2;
+%% hash_tag(ripemd160) -> 3;
+hash_tag(sha256) -> 8.
+%% hash_tag(sha384) -> 9;
+%% hash_tag(sha512) -> 10;
+%% hash_tag(sha224) -> 11.
 
 comp_alg(0) -> none;
 comp_alg(1) -> zip;
