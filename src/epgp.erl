@@ -353,3 +353,55 @@ testmsg() ->
       "wxRVbHzTP3CLMKJRRidT/BQF/r8GWBvdoOvhD0CVPvttyErT665a2KoQThwOpo8=\n"
       "=QEAt\n"
       "-----END PGP MESSAGE-----\n">>.
+
+%%%========================================================================
+%%% eunit
+%%%========================================================================
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+enc_dec_test() ->
+    Message = <<"The secret wørds are squeamish ossifrage"/utf8>>,
+    Password = <<"apa">>,
+    ?assertMatch([#pgp_ske_skey{},
+                  #pgp_se_n_ip_data{
+                     data =
+                         [#pgp_comp_data{
+                             alg = zip,
+                             data =
+                                 [#pgp_lit_data{
+                                     type = utf8,
+                                     filename = <<>>,
+                                     data = Message}]}]}],
+                 epgp:parse(epgp:sym_encrypt(Message, Password), Password)),
+    ok.
+
+length_191_test() ->
+    Data = binary:copy(<<"a">>, 191),
+    Packet = packet(11, <<"u", 0, 0:32, Data/binary>>),
+    ?assertMatch([#pgp_lit_data{data = Data}],
+                 parse_packets(Packet, #pgp_ctx{})),
+    ok.
+
+length_192_test() ->
+    Data = binary:copy(<<"a">>, 192),
+    Packet = packet(11, <<"u", 0, 0:32, Data/binary>>),
+    ?assertMatch([#pgp_lit_data{data = Data}],
+                 parse_packets(Packet, #pgp_ctx{})),
+    ok.
+
+length_8383_test() ->
+    Data = binary:copy(<<"a">>, 8383),
+    Packet = packet(11, <<"u", 0, 0:32, Data/binary>>),
+    ?assertMatch([#pgp_lit_data{data = Data}],
+                 parse_packets(Packet, #pgp_ctx{})),
+    ok.
+
+length_8384_test() ->
+    Data = binary:copy(<<"a">>, 8384),
+    Packet = packet(11, <<"u", 0, 0:32, Data/binary>>),
+    ?assertMatch([#pgp_lit_data{data = Data}],
+                 parse_packets(Packet, #pgp_ctx{})),
+    ok.
+-endif.
