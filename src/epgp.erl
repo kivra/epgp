@@ -111,7 +111,7 @@ pack_se_n_ip_data(Data, #pgp_ctx{skey = #pgp_skey{ alg = SeshAlg
                                        Plain, true),
     packet(18, <<1, Encrypted/binary>>).
 
-packet(Tag, Message) when Tag >= 0 andalso Tag < 64->
+packet(Tag, Message) when Tag >= 0 andalso Tag < 64 ->
     Len = packet_len(byte_size(Message)),
     <<1:1,1:1,Tag:6,Len/binary,Message/binary>>.
 
