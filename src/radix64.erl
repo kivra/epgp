@@ -10,10 +10,12 @@
 
 %% The following type is a subtype of string() for return values
 %% of encoding functions.
--type base64_binary() :: binary().
+-type radix64_binary() :: binary().
 
--spec decode(Base64) -> Data when
-      Base64 :: base64_binary(),
+-spec decode(Radix64) ->
+          {ok, Data} |
+          {error, {bad_crc24, binary(), binary()}} when
+      Radix64 :: radix64_binary(),
       Data :: binary().
 
 decode(Bin) when is_binary(Bin) ->
@@ -55,6 +57,10 @@ decode_binary(<<C4:8, Cs/bits>>, A, B1, B2, B3) ->
         eq                -> decode_binary(Cs, <<A/bits,B1:6,B2:6,(B3 bsr 2):4>>);
         B4                -> decode_binary(Cs, <<A/bits,B1:6,B2:6,B3:6,B4:6>>)
     end.
+
+-spec encode(Data) -> Radix64 when
+      Data :: binary(),
+      Radix64 :: radix64_binary().
 
 encode(Bin) when is_binary(Bin) ->
     B64 = encode_binary(Bin, <<>>),
@@ -180,5 +186,10 @@ b64e(X) ->
 
 crc24_test() ->
     ?assertEqual(<<71,245,138>>, crc24(<<"hello">>)),
+    ok.
+
+enc_dec_test() ->
+    Str = <<"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ">>,
+    ?assertEqual({ok, Str}, decode(encode(Str))),
     ok.
 -endif.
