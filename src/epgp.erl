@@ -67,27 +67,22 @@ do_sym_encrypt(Message, Ctx0) ->
 pack_ske_skey(#pgp_ctx{pw_fun = PassFun} = Ctx) ->
     CountField = 255,
     SymAlg = aes_256_cfb128,
-    case {crypto:strong_rand_bytes(8), crypto:strong_rand_bytes(32)} of
-        {{error, Reason}, _} ->
-            error(Reason);
-        {_, {error, Reason}} ->
-            error(Reason);
-        {Salt, SeshKey0} ->
-            SKey = s2k(iter_salted_s2k, CountField, PassFun, Salt,
-                       sha256),
-            S2KTag = s2k_tag(iter_salted_s2k),
-            CryptTag = sym_tag(SymAlg),
-            SeshKey1 = <<CryptTag, SeshKey0/binary>>,
-            EncSeshKey = crypto:crypto_one_time(SymAlg, SKey, iv(SymAlg),
-                                                SeshKey1, true),
-            HashTag = hash_tag(sha256),
-            CtxSesh = #pgp_skey{ alg = SymAlg
-                               , skey_fun = fun () -> SeshKey0 end
-                               },
-            {packet(3, <<4,CryptTag,S2KTag,HashTag,Salt/binary,CountField,
-                         EncSeshKey/binary>>),
-             Ctx#pgp_ctx{skey = CtxSesh}}
-    end.
+    Salt = crypto:strong_rand_bytes(8),
+    SeshKey0 = crypto:strong_rand_bytes(32),
+    SKey = s2k(iter_salted_s2k, CountField, PassFun, Salt,
+               sha256),
+    S2KTag = s2k_tag(iter_salted_s2k),
+    CryptTag = sym_tag(SymAlg),
+    SeshKey1 = <<CryptTag, SeshKey0/binary>>,
+    EncSeshKey = crypto:crypto_one_time(SymAlg, SKey, iv(SymAlg),
+                                        SeshKey1, true),
+    HashTag = hash_tag(sha256),
+    CtxSesh = #pgp_skey{ alg = SymAlg
+                       , skey_fun = fun () -> SeshKey0 end
+                       },
+    {packet(3, <<4,CryptTag,S2KTag,HashTag,Salt/binary,CountField,
+                 EncSeshKey/binary>>),
+     Ctx#pgp_ctx{skey = CtxSesh}}.
 
 pack_lit_data(utf8, Data) ->
     UnixTs = unix_ts_32(),
@@ -105,20 +100,16 @@ pack_comp_data(zip, Data) ->
 pack_se_n_ip_data(Data, #pgp_ctx{skey = #pgp_skey{ alg = SeshAlg
                                                  , skey_fun = SKeyFun
                                                  }}) ->
-    case crypto:strong_rand_bytes(bsize(SeshAlg)) of
-        {error, Reason} ->
-            error(Reason);
-        Nonce ->
-            ChSum = binary:part(Nonce, bsize(SeshAlg)-2, 2),
-            IVData = <<Nonce/binary, ChSum/binary, Data/binary,
-                       16#d3, 16#14>>,
-            Digest = crypto:hash(sha, IVData),
-            Plain = <<IVData/binary, Digest/binary>>,
-            Encrypted = crypto:crypto_one_time(SeshAlg, SKeyFun(),
-                                               iv(SeshAlg),
-                                               Plain, true),
-            packet(18, <<1, Encrypted/binary>>)
-    end.
+    Nonce = crypto:strong_rand_bytes(bsize(SeshAlg)),
+    ChSum = binary:part(Nonce, bsize(SeshAlg)-2, 2),
+    IVData = <<Nonce/binary, ChSum/binary, Data/binary,
+               16#d3, 16#14>>,
+    Digest = crypto:hash(sha, IVData),
+    Plain = <<IVData/binary, Digest/binary>>,
+    Encrypted = crypto:crypto_one_time(SeshAlg, SKeyFun(),
+                                       iv(SeshAlg),
+                                       Plain, true),
+    packet(18, <<1, Encrypted/binary>>).
 
 packet(Tag, Message) when Tag >= 0 andalso Tag < 64->
     Len = packet_len(byte_size(Message)),
