@@ -11,7 +11,7 @@ jobs:
   compile:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "${{ env.OTP_VERSION }}"
@@ -31,7 +31,7 @@ jobs:
     needs: [compile]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "${{ env.OTP_VERSION }}"
@@ -51,7 +51,7 @@ jobs:
     needs: [compile]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "${{ env.OTP_VERSION }}"
@@ -71,7 +71,7 @@ jobs:
     needs: [compile]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "${{ env.OTP_VERSION }}"
@@ -97,7 +97,7 @@ jobs:
         otp: ['25.0', '26.2.1']
         rebar3: ['3.22.1']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
