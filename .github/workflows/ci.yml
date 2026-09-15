@@ -15,7 +15,7 @@ jobs:
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "${{ env.OTP_VERSION }}"
-          rebar3-version: "${{ env.REBAR3_VERSION }}"
+          rebar3-version: "3.27.0"
       - name: Fetch workspace from cache
         uses: actions/cache@v6
         id: cached-workspace
@@ -35,7 +35,7 @@ jobs:
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "${{ env.OTP_VERSION }}"
-          rebar3-version: "${{ env.REBAR3_VERSION }}"
+          rebar3-version: "3.27.0"
       - name: Fetch workspace from cache
         uses: actions/cache@v6
         id: cached-workspace
@@ -55,7 +55,7 @@ jobs:
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "${{ env.OTP_VERSION }}"
-          rebar3-version: "${{ env.REBAR3_VERSION }}"
+          rebar3-version: "3.27.0"
       - name: Fetch workspace from cache
         uses: actions/cache@v6
         id: cached-workspace
@@ -75,7 +75,7 @@ jobs:
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "${{ env.OTP_VERSION }}"
-          rebar3-version: "${{ env.REBAR3_VERSION }}"
+          rebar3-version: "3.27.0"
       - name: Fetch workspace from cache
         uses: actions/cache@v6
         id: cached-workspace
@@ -101,5 +101,5 @@ jobs:
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
-          rebar3-version: ${{matrix.rebar3}}
+          rebar3-version: 3.27.0
       - run: rebar3 ct
