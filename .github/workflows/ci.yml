@@ -125,6 +125,8 @@ jobs:
       # from the working tree, so this needs no history (and arguably no
       # checkout at all); it is kept only to give the job a workspace.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Calculate Semantic Version
         id: semver
