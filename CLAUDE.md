@@ -48,6 +48,9 @@ xref, eunit, dialyzer and the OTP matrix pass.
   tag and must not be hardcoded. On a branch it resolves to a describe-style
   `0.1.10+build.40.ref0d00955`. (`{vsn, semver}` is a literal alias for `git`
   in `rebar_utils:vcs_vsn_cmd/3` — the two are interchangeable.)
+- Because of that, **every CI job that builds needs `fetch-depth: 0`**. With
+  the `actions/checkout` default of 1 no tags are fetched and rebar3 silently
+  resolves the version to `0.0.0+build.1.ref<sha>` with no warning.
 
 Note `xref_checks` includes `locals_not_used`, so an unused private function
 fails the build — this is why several `*_tag/1` and `*_alg/1` clauses for
