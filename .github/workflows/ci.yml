@@ -103,3 +103,53 @@ jobs:
           otp-version: ${{matrix.otp}}
           rebar3-version: ${{matrix.rebar3}}
       - run: rebar3 ct
+
+  versioner:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    outputs:
+      releaseTag: ${{ steps.semver.outputs.nextStrict }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # Need all of history to see past tags for semver
+
+      - name: Calculate Semantic Version
+        id: semver
+        # This decides whether we tag a release at all. An empty output means
+        # no release: either we are not on the default branch, or the commit
+        # opted out, or no commit since the last tag warranted a bump.
+        if: github.ref_name == github.event.repository.default_branch && !startsWith(github.event.head_commit.message, 'no-release')
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
+          # Tags in this repo are bare version numbers with no "v" prefix, so
+          # the empty default prefix is correct for both reading and writing.
+          skipInvalidTags: true
+          # Conventional commits drive the bump. majorList stays empty: a major
+          # bump comes from a "!" marker or a BREAKING CHANGE note. chore/docs/
+          # build/ci are in patchList so renovate dependency bumps still release.
+          minorList: feat, feature
+          patchList: fix, bugfix, perf, refactor, test, tests, chore, docs, build, ci
+          # Nothing releasable, or nothing new: say so and skip, do not fail CI.
+          noVersionBumpBehavior: silent
+          noNewCommitBehavior: silent
+
+  release:
+    needs: [versioner, xref, eunit, dialyzer, test-compilation]
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        if: ${{ needs.versioner.outputs.releaseTag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ needs.versioner.outputs.releaseTag }}" --generate-notes
